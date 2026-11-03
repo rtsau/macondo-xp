@@ -127,6 +127,17 @@ func ParseCGP(cfg *config.Config, cgpstr string) (*ParsedCGP, error) {
 
 	}
 
+	if game.IsCrossplay(variant) {
+		// The defaults above are for other variants. Let the variant choose,
+		// unless these were asked for explicitly.
+		if _, ok := opcodes["bdn"]; !ok {
+			boardLayoutName = ""
+		}
+		if _, ok := opcodes["ld"]; !ok {
+			letterDistributionName = ""
+		}
+	}
+
 	rules, err := game.NewBasicGameRules(cfg, lexiconName, boardLayoutName, letterDistributionName,
 		game.CrossScoreAndSet, variant)
 	if err != nil {

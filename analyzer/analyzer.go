@@ -224,7 +224,7 @@ func (an *Analyzer) SimInit() error {
 
 	c, err := equity.NewCombinedStaticCalculator(
 		an.game.LexiconName(),
-		an.config, "", equity.PEGAdjustmentFilename)
+		an.config, an.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return fmt.Errorf("init sim failed: %w", err)
 	}

@@ -67,6 +67,9 @@ var (
 )
 
 func wolgesAnalyze(cfg *config.Config, g *bot.BotTurnPlayer) ([]*move.Move, error) {
+	if game.IsCrossplay(g.Rules().Variant()) {
+		return nil, errors.New("wolges doesn't know the rules of Crossplay")
+	}
 	// cfg.WolgesAwsmURL
 	// convert game to the needed data structure
 	dim := g.Board().Dim()

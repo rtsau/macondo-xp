@@ -838,7 +838,7 @@ func (gen *GordonGenerator) shadowRecord() {
 
 	bingoBonus := 0
 	if gen.tilesPlayed == game.RackTileLimit {
-		bingoBonus = 50
+		bingoBonus = gen.board.BingoBonus()
 	}
 
 	score := tilesPlayedScore +

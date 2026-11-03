@@ -323,7 +323,7 @@ func (a *Analyzer) EvaluateLeave(leave string) (float64, error) {
 			leavesFile = "super-leaves.klv2"
 		}
 
-		elc, err := equity.NewExhaustiveLeaveCalculator(lexiconName, a.config, leavesFile)
+		elc, err := equity.NewExhaustiveLeaveCalculator(lexiconName, a.config, a.game.Rules().LeavesFileOr(leavesFile))
 		if err != nil {
 			return 0, fmt.Errorf("failed to create exhaustive leave calculator: %w", err)
 		}

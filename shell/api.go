@@ -2303,7 +2303,7 @@ func (sc *ShellController) runSimulationForExplain(params simParams) error {
 // one anyway. All it has to do is rank the plays.
 func (sc *ShellController) runBaselineSim(params simParams) ([]montecarlo.CandidateStats, error) {
 	calc, err := equity.NewCombinedStaticCalculator(
-		sc.game.LexiconName(), sc.config, "", equity.PEGAdjustmentFilename)
+		sc.game.LexiconName(), sc.config, sc.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return nil, err
 	}

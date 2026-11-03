@@ -365,7 +365,7 @@ func (sc *ShellController) startMultiSimExperiment(iters, plies, simCount int, p
 
 		c, err := equity.NewCombinedStaticCalculator(
 			sc.game.LexiconName(),
-			sc.config, "", equity.PEGAdjustmentFilename)
+			sc.config, sc.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 		if err != nil {
 			return err
 		}

@@ -117,6 +117,9 @@ type GameBoard struct {
 	tilesPlayed int
 	dim         int
 	lastCopy    *GameBoard
+	// bingoBonus is the bonus for playing a full rack. It lives with the
+	// premium squares because it is part of how this board scores a play.
+	bingoBonus int
 
 	// Store cross-scores with the board to avoid recalculating, but cross-sets
 	// are a movegen detail and do not belong here!
@@ -141,6 +144,10 @@ type GameBoard struct {
 	rowMul int
 	colMul int
 }
+
+// DefaultBingoBonus is the bonus for playing a full rack, unless a game's rules
+// set another with SetBingoBonus.
+const DefaultBingoBonus = 50
 
 // MakeBoard creates a board from a description string.
 // Assumption: strings are ASCII.
@@ -181,6 +188,7 @@ func MakeBoard(desc []string) *GameBoard {
 		squares:       sqs,
 		bonuses:       bs,
 		dim:           len(desc),
+		bingoBonus:    DefaultBingoBonus,
 		vCrossScores:  vc,
 		hCrossScores:  hc,
 		hCrossSets:    hcs,
@@ -201,6 +209,16 @@ func MakeBoard(desc []string) *GameBoard {
 
 func (g *GameBoard) TilesPlayed() int {
 	return g.tilesPlayed
+}
+
+// BingoBonus is the bonus for playing a full rack on this board.
+func (g *GameBoard) BingoBonus() int {
+	return g.bingoBonus
+}
+
+// SetBingoBonus sets the bonus for playing a full rack on this board.
+func (g *GameBoard) SetBingoBonus(bonus int) {
+	g.bingoBonus = bonus
 }
 
 // Dim is the dimension of the board. It assumes the board is square.
@@ -1010,7 +1028,7 @@ func (g *GameBoard) ScoreWord(word tilemapping.MachineWord, row, col, tilesPlaye
 	crossScores := 0
 	bingoBonus := 0
 	if tilesPlayed == 7 {
-		bingoBonus = 50
+		bingoBonus = g.bingoBonus
 	}
 	wordMultiplier := 1
 
@@ -1097,6 +1115,7 @@ func (g *GameBoard) Copy() *GameBoard {
 
 	newg.tilesPlayed = g.tilesPlayed
 	newg.dim = g.dim
+	newg.bingoBonus = g.bingoBonus
 	newg.rowMul = g.rowMul
 	newg.colMul = g.colMul
 	return newg
@@ -1122,6 +1141,7 @@ func (g *GameBoard) CopyFrom(b *GameBoard) {
 	copy(g.vLeftExtSets, b.vLeftExtSets)
 	copy(g.vRightExtSets, b.vRightExtSets)
 	g.tilesPlayed = b.tilesPlayed
+	g.bingoBonus = b.bingoBonus
 	g.rowMul = b.rowMul
 	g.colMul = b.colMul
 }

@@ -32,7 +32,7 @@ func NewFromGame(g *game.Game, appCfg *config.Config, ec Config) (*ExternalEngin
 	if ec.BinaryPath == "" {
 		return nil, fmt.Errorf("externalengine: BinaryPath required")
 	}
-	c, err := equity.NewExhaustiveLeaveCalculator(g.LexiconName(), appCfg, "")
+	c, err := equity.NewExhaustiveLeaveCalculator(g.LexiconName(), appCfg, g.Rules().LeavesFileOr(""))
 	if err != nil {
 		return nil, err
 	}

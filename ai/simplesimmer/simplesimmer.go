@@ -64,7 +64,7 @@ func NewSimpleSimmerFromGame(g *game.Game) (*SimpleSimmer, error) {
 		leaveFile = "super-leaves.klv2"
 	}
 	c, err := equity.NewCombinedStaticCalculator(
-		g.LexiconName(), g.Config(), leaveFile, equity.PEGAdjustmentFilename)
+		g.LexiconName(), g.Config(), g.Rules().LeavesFileOr(leaveFile), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return nil, err
 	}

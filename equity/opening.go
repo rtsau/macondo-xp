@@ -24,6 +24,16 @@ func (oac OpeningAdjustmentCalculator) Type() string {
 	return "OpeningAdjustmentCalculator"
 }
 
+// exposes2LS reports whether a tile at position j along the center line of an
+// empty board sits right next to a 2LS, on the row or column beside that line.
+func exposes2LS(b *board.GameBoard, j int, vertical bool) bool {
+	center := b.Dim() / 2
+	if vertical {
+		return b.GetBonus(j, center-1) == board.Bonus2LS || b.GetBonus(j, center+1) == board.Bonus2LS
+	}
+	return b.GetBonus(center-1, j) == board.Bonus2LS || b.GetBonus(center+1, j) == board.Bonus2LS
+}
+
 func placementAdjustment(play *move.Move, board *board.GameBoard, ld *tilemapping.LetterDistribution) float64 {
 	// Very simply just checks how many vowels are overlapping bonus squares.
 	// This only gets considered when the board is empty.
@@ -42,25 +52,8 @@ func placementAdjustment(play *move.Move, board *board.GameBoard, ld *tilemappin
 	penalty := 0.0
 	vPenalty := -0.7 // VERY ROUGH approximation from Maven paper.
 	for j < end {
-		if play.Tiles()[j-start].IsVowel(ld) {
-			if board.Dim() == 15 {
-				switch j {
-				case 2, 6, 8, 12:
-					// row/col below/above have a 2LS. note this only works
-					// for specific board configurations
-					penalty += vPenalty
-				default:
-
-				}
-			} else if board.Dim() == 21 {
-				switch j {
-				case 5, 9, 11, 15:
-					// see above, 2LS for this board dim (fix me later, this is ugly)
-					penalty += vPenalty
-				default:
-
-				}
-			}
+		if play.Tiles()[j-start].IsVowel(ld) && exposes2LS(board, j, vertical) {
+			penalty += vPenalty
 		}
 		j++
 	}

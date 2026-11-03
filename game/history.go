@@ -12,6 +12,12 @@ import (
 // and letter distribution name.
 func HistoryToVariant(h *pb.GameHistory) (boardLayoutName, letterDistributionName string, variant Variant) {
 	log.Trace().Interface("h", h).Msg("HistoryToVariant")
+	if IsCrossplay(Variant(h.Variant)) {
+		// Crossplay's tiles can't be guessed from its lexicon, which is the
+		// same one a game with other tiles would use. The rules fill in an
+		// empty board and letter distribution, and reject conflicting ones.
+		return h.BoardLayout, h.LetterDistribution, VarCrossplay
+	}
 	boardLayoutName = h.BoardLayout
 	letterDistributionName = h.LetterDistribution
 	var err error

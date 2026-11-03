@@ -366,6 +366,9 @@ func (sc *ShellController) setExhaustiveLeaveCalculator() error {
 	if strings.HasSuffix(ldName, "_super") {
 		leaves = "super-leaves.klv2"
 	}
+	if game.IsCrossplay(sc.options.Variant) {
+		leaves = game.CrossplayLeavesFilename
+	}
 	els, err := equity.NewExhaustiveLeaveCalculator(sc.config.GetString(config.ConfigDefaultLexicon),
 		sc.config, leaves)
 	if err != nil {
@@ -513,7 +516,7 @@ func (sc *ShellController) initGameDataStructures() error {
 
 	c, err := equity.NewCombinedStaticCalculator(
 		sc.game.LexiconName(),
-		sc.config, "", equity.PEGAdjustmentFilename)
+		sc.config, sc.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return err
 	}
@@ -725,7 +728,7 @@ func (sc *ShellController) variationSwitch(varID int) (*Response, error) {
 
 	c, err := equity.NewCombinedStaticCalculator(
 		sc.game.LexiconName(),
-		sc.config, "", equity.PEGAdjustmentFilename)
+		sc.config, sc.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return nil, err
 	}

@@ -563,6 +563,12 @@ func (s *Simmer) TryLoadWMP(cfg *wglconfig.Config, lexiconName string) {
 			Msg("WMP disabled for non-standard board; using KWG algorithm")
 		return
 	}
+	// A word map is built for a lexicon, not for the tiles this game plays with,
+	// so the lexicon's map may be unable to represent this game's racks.
+	if err := wmppkg.CheckCompatible(s.origGame.Bag().LetterDistribution(), s.origGame.Board().Dim()); err != nil {
+		log.Info().Err(err).Msg("WMP can't represent this game's tiles; sim will use the KWG algorithm")
+		return
+	}
 	w, err := wmppkg.EnsureWMP(cfg, lexiconName)
 	if err != nil {
 		log.Info().Err(err).Str("lexicon", lexiconName).

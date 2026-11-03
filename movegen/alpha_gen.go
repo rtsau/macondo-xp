@@ -172,7 +172,7 @@ func (gen *GordonGenerator) goOnAlpha(curCol int, L tilemapping.MachineLetter,
 
 	var bingoBonus int
 	if gen.tilesPlayed == game.RackTileLimit {
-		bingoBonus = 50
+		bingoBonus = gen.board.BingoBonus()
 	}
 	// The whole main word is legal iff the tiles it holds are an anagram of a
 	// word. Unlike the classic generator's accepts bit, this costs a full

@@ -3,6 +3,7 @@ package game
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -25,7 +26,26 @@ const (
 	// layouts as different variants.
 	VarClassicSuper  Variant = "classic_super"
 	VarWordSmogSuper Variant = "wordsmog_super"
+	// VarCrossplay is the New York Times's Crossplay. This one name selects its
+	// board, tiles, sweep bonus and leaves.
+	VarCrossplay Variant = "crossplay"
 )
+
+const (
+	// CrossplayLetterDistribution is the name of Crossplay's tile set.
+	CrossplayLetterDistribution = "crossplay"
+	// CrossplayBingoBonus is the bonus for playing a full rack (a "sweep").
+	CrossplayBingoBonus = 40
+	// CrossplayLeavesFilename names Crossplay's leave values, which are looked
+	// up in the strategy folders. As an explicit filename it can never fall
+	// back to a lexicon's published leaves, which are for other rules.
+	CrossplayLeavesFilename = "crossplay-leaves.klv2"
+)
+
+// IsCrossplay reports whether v is the Crossplay variant.
+func IsCrossplay(v Variant) bool {
+	return v == VarCrossplay
+}
 
 // IsWordSmog reports whether v is one of the WordSmog variants, where any
 // anagram of a valid word is playable.
@@ -105,9 +125,48 @@ func (g GameRules) ExchangeLimit() int {
 	return g.exchangeLimit
 }
 
+// LeavesFileOr returns the leave file a game under these rules should use, where
+// file is the choice it would make otherwise. Crossplay always uses its own, so
+// that it can't be evaluated with leaves for another game.
+func (g GameRules) LeavesFileOr(file string) string {
+	if IsCrossplay(g.variant) {
+		return CrossplayLeavesFilename
+	}
+	return file
+}
+
+// resolveVariantSettings fills in the board and tiles that a variant implies and
+// rejects any that contradict it: the wrong combination would still play, but
+// every score would be wrong.
+func resolveVariantSettings(boardLayoutName, letterDistributionName string, variant Variant) (string, string, error) {
+	isCrossplayLD := strings.EqualFold(letterDistributionName, CrossplayLetterDistribution)
+	if !IsCrossplay(variant) {
+		if boardLayoutName == board.CrossplayLayout || isCrossplayLD {
+			return "", "", fmt.Errorf("board %q and letter distribution %q need the %s variant, not %q",
+				boardLayoutName, letterDistributionName, VarCrossplay, variant)
+		}
+		return boardLayoutName, letterDistributionName, nil
+	}
+	if boardLayoutName != "" && boardLayoutName != board.CrossplayLayout {
+		return "", "", fmt.Errorf("the %s variant needs the %s board, not %q",
+			VarCrossplay, board.CrossplayLayout, boardLayoutName)
+	}
+	if letterDistributionName != "" && !isCrossplayLD {
+		return "", "", fmt.Errorf("the %s variant needs the %s letter distribution, not %q",
+			VarCrossplay, CrossplayLetterDistribution, letterDistributionName)
+	}
+	return board.CrossplayLayout, CrossplayLetterDistribution, nil
+}
+
 func NewBasicGameRules(cfg *config.Config,
 	lexiconName, boardLayoutName, letterDistributionName, csetGenName string,
 	variant Variant) (*GameRules, error) {
+
+	boardLayoutName, letterDistributionName, err := resolveVariantSettings(
+		boardLayoutName, letterDistributionName, variant)
+	if err != nil {
+		return nil, err
+	}
 
 	dist, err := tilemapping.GetDistribution(cfg.WGLConfig(), letterDistributionName)
 	if err != nil {
@@ -120,6 +179,8 @@ func NewBasicGameRules(cfg *config.Config,
 		bd = board.CrosswordGameBoard
 	case board.SuperCrosswordGameLayout:
 		bd = board.SuperCrosswordGameBoard
+	case board.CrossplayLayout:
+		bd = board.CrossplayBoard
 	default:
 		return nil, errors.New("unsupported board layout")
 	}
@@ -178,11 +239,16 @@ func NewBasicGameRules(cfg *config.Config,
 		exchLimit = 1
 	}
 
+	gameBoard := board.MakeBoard(bd)
+	if IsCrossplay(variant) {
+		gameBoard.SetBingoBonus(CrossplayBingoBonus)
+	}
+
 	rules := &GameRules{
 		cfg:           cfg,
 		dist:          dist,
 		distname:      letterDistributionName,
-		board:         board.MakeBoard(bd),
+		board:         gameBoard,
 		boardname:     boardLayoutName,
 		lexicon:       lex,
 		crossSetGen:   csgen,

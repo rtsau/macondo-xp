@@ -549,7 +549,7 @@ func (gen *GordonGenerator) goOn(curCol int, L tilemapping.MachineLetter,
 	leftstrip, rightstrip int, uniquePlay bool, baseScore, crossScores, wordMultiplier int) {
 	var bingoBonus int
 	if gen.tilesPlayed == game.RackTileLimit {
-		bingoBonus = 50
+		bingoBonus = gen.board.BingoBonus()
 	}
 	// Hoist the per-column cache lookup to a local pointer so the
 	// (up to three) field reads share a single bounds-checked

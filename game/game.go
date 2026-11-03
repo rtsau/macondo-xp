@@ -1505,6 +1505,9 @@ func (g *Game) ToCGP(formatForBot bool) string {
 	if ld != "" {
 		cgp += fmt.Sprintf(" ld %s;", ld)
 	}
+	if IsCrossplay(g.rules.Variant()) {
+		cgp += fmt.Sprintf(" var %s;", g.rules.Variant())
+	}
 
 	return cgp
 }

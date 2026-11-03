@@ -307,7 +307,7 @@ func (gen *GordonGenerator) computeWMPScore(startCol, wordLength int) int {
 
 	bingoBonus := 0
 	if gen.tilesPlayed == game.RackTileLimit {
-		bingoBonus = 50
+		bingoBonus = gen.board.BingoBonus()
 	}
 
 	return (playedScoreTotal+playthroughScoreTotal)*wordMultiplier +

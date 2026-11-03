@@ -757,7 +757,7 @@ func (a *Analyzer) analyzeWithSim(ctx context.Context, g *game.Game, analysis *T
 
 	// Create simmer
 	equityCalc, err := equity.NewCombinedStaticCalculator(
-		g.LexiconName(), a.cfg, "", equity.PEGAdjustmentFilename)
+		g.LexiconName(), a.cfg, g.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return fmt.Errorf("failed to create equity calculator: %w", err)
 	}

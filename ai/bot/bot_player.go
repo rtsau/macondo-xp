@@ -150,7 +150,7 @@ func addBotFields(p *turnplayer.BaseTurnPlayer, conf *BotConfig, botType pb.BotR
 		calculators = []equity.EquityCalculator{equity.NewNoLeaveCalculator()}
 	} else {
 		c1, err := equity.NewExhaustiveLeaveCalculator(
-			p.LexiconName(), &conf.Config, conf.LeavesFile)
+			p.LexiconName(), &conf.Config, p.Rules().LeavesFileOr(conf.LeavesFile))
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func addBotFields(p *turnplayer.BaseTurnPlayer, conf *BotConfig, botType pb.BotR
 			leaveFile = "super-leaves.klv2"
 		}
 		c, err := equity.NewCombinedStaticCalculator(
-			p.LexiconName(), p.Config(), leaveFile, equity.PEGAdjustmentFilename)
+			p.LexiconName(), p.Config(), p.Rules().LeavesFileOr(leaveFile), equity.PEGAdjustmentFilename)
 		if err != nil {
 			return nil, err
 		}

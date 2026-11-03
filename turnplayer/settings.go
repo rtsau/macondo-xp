@@ -45,6 +45,17 @@ func (opts *GameOptions) SetDefaults(cfg *config.Config) {
 	if opts.Variant == "" {
 		opts.Variant = game.VarClassic
 	}
+	if game.IsCrossplay(opts.Variant) {
+		opts.useCrossplaySettings()
+	}
+}
+
+// useCrossplaySettings selects the board and tiles that Crossplay plays with.
+func (opts *GameOptions) useCrossplaySettings() {
+	opts.BoardLayoutName = board.CrossplayLayout
+	if opts.Lexicon != nil {
+		opts.Lexicon.Distribution = game.CrossplayLetterDistribution
+	}
 }
 
 // EnsureKWG checks whether the KWG file for lexname is present and, if not,
@@ -61,7 +72,11 @@ func (opts *GameOptions) SetLexicon(fields []string, cfg *wglconfig.Config) erro
 	var err error
 	if len(fields) == 1 {
 		lexname = fields[0]
-		letdist, err = tilemapping.ProbableLetterDistributionName(lexname)
+		if game.IsCrossplay(opts.Variant) {
+			letdist = game.CrossplayLetterDistribution
+		} else {
+			letdist, err = tilemapping.ProbableLetterDistributionName(lexname)
+		}
 		if err != nil {
 			return fmt.Errorf("could not determine a letter distribution for lexicon %q; "+
 				"please specify one explicitly, e.g. 'set lexicon %s english'", lexname, lexname)
@@ -91,7 +106,7 @@ func (opts *GameOptions) SetChallenge(rule string) error {
 
 func (opts *GameOptions) SetBoardLayoutName(name string) error {
 	switch name {
-	case board.CrosswordGameLayout, board.SuperCrosswordGameLayout:
+	case board.CrosswordGameLayout, board.SuperCrosswordGameLayout, board.CrossplayLayout:
 		opts.BoardLayoutName = name
 	default:
 		return fmt.Errorf("%v is not a supported board layout", name)
@@ -100,6 +115,7 @@ func (opts *GameOptions) SetBoardLayoutName(name string) error {
 }
 
 func (opts *GameOptions) SetVariant(name string) error {
+	wasCrossplay := game.IsCrossplay(opts.Variant)
 	switch name {
 	case string(game.VarClassic):
 		opts.Variant = game.VarClassic
@@ -109,8 +125,24 @@ func (opts *GameOptions) SetVariant(name string) error {
 		opts.Variant = game.VarWordSmog
 	case string(game.VarWordSmogSuper):
 		opts.Variant = game.VarWordSmogSuper
+	case string(game.VarCrossplay):
+		opts.Variant = game.VarCrossplay
+		opts.useCrossplaySettings()
 	default:
 		return fmt.Errorf("%v is not a supported variant name", name)
+	}
+	if wasCrossplay && !game.IsCrossplay(opts.Variant) {
+		// Don't leave Crossplay's board and tiles behind for a variant that
+		// would reject them.
+		opts.BoardLayoutName = board.CrosswordGameLayout
+		if opts.Lexicon != nil {
+			letdist, err := tilemapping.ProbableLetterDistributionName(opts.Lexicon.Name)
+			if err != nil {
+				return fmt.Errorf("could not determine a letter distribution for lexicon %q: %w",
+					opts.Lexicon.Name, err)
+			}
+			opts.Lexicon.Distribution = letdist
+		}
 	}
 	return nil
 }

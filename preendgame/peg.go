@@ -678,7 +678,7 @@ func (s *Solver) Solve(ctx context.Context) ([]*PreEndgamePlay, error) {
 		moves = s.movegen.GenAll(s.game.RackFor(s.game.PlayerOnTurn()), false)
 	}
 	c, err := equity.NewCombinedStaticCalculator(
-		s.game.LexiconName(), s.game.Config(), "", equity.PEGAdjustmentFilename)
+		s.game.LexiconName(), s.game.Config(), s.game.Rules().LeavesFileOr(""), equity.PEGAdjustmentFilename)
 	if err != nil {
 		return nil, err
 	}
