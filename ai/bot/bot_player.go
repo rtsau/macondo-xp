@@ -504,6 +504,10 @@ func (p *BotTurnPlayer) quickEndgameMove(ctx context.Context) (*move.Move, bool)
 		p.Game.Playing() != pb.PlayState_PLAYING {
 		return nil, false
 	}
+	if game.IsCrossplay(p.Rules().Variant()) {
+		// The negamax search this uses is for other rules.
+		return nil, false
+	}
 	onturn := p.Game.PlayerOnTurn()
 	if cfg.QuickEndgameMargin > 0 {
 		spread := p.Game.SpreadFor(onturn)

@@ -1103,6 +1103,11 @@ func (s *Simmer) simSingleIteration(ctx context.Context, plies, thread int, iter
 		}
 		// log.Debug().Msgf("Spread for initial player: %v, leftover: %v",
 		// 	s.game.SpreadFor(s.initialPlayer), leftover)
+		if g.Playing() == pb.PlayState_GAME_OVER && !g.Board().LeftoverRacksScore() {
+			// The game is over and the tiles left are worth nothing, whatever a
+			// leave table would say they're worth to a player with turns to come.
+			leftover = 0
+		}
 		spread := g.SpreadFor(s.initialPlayer)
 		simmedPlay.addEquityStat(
 			s.initialSpread,

@@ -25,7 +25,7 @@ func (nls *NoLeaveCalculator) Equity(play *move.Move, board *board.GameBoard,
 	}
 
 	if bag.TilesRemaining() == 0 {
-		otherAdjustments += endgameAdjustment(play, oppRack, bag.LetterDistribution())
+		otherAdjustments += endgameAdjustment(play, board, oppRack, bag.LetterDistribution())
 	}
 	return float64(score) + otherAdjustments
 }

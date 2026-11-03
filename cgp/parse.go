@@ -67,6 +67,7 @@ func ParseCGP(cfg *config.Config, cgpstr string) (*ParsedCGP, error) {
 	maxScorelessTurns := game.DefaultMaxScorelessTurns
 	variant := game.VarClassic
 	gid := ""
+	finalTurns := -1
 	opcodes := map[string]string{}
 
 	for _, op := range ops {
@@ -120,6 +121,19 @@ func ParseCGP(cfg *config.Config, cgpstr string) (*ParsedCGP, error) {
 			variant = game.Variant(opWithParams[1])
 			opcodes["var"] = opWithParams[1]
 
+		case "ftl":
+			if len(opWithParams) != 2 {
+				return nil, errors.New("wrong number of arguments for ftl operation")
+			}
+			finalTurns, err = strconv.Atoi(opWithParams[1])
+			if err != nil {
+				return nil, err
+			}
+			if finalTurns < 0 || finalTurns > game.FinalTurnsAfterBagEmptied {
+				return nil, fmt.Errorf("ftl must be from 0 to %d, not %d", game.FinalTurnsAfterBagEmptied, finalTurns)
+			}
+			opcodes["ftl"] = opWithParams[1]
+
 		case "tmr":
 			opcodes["tmr"] = opWithParams[1]
 
@@ -165,7 +179,15 @@ func ParseCGP(cfg *config.Config, cgpstr string) (*ParsedCGP, error) {
 	if err != nil {
 		return nil, err
 	}
-	g.SetMaxScorelessTurns(maxScorelessTurns)
+	if _, ok := opcodes["mcnz"]; ok || !game.IsCrossplay(variant) {
+		g.SetMaxScorelessTurns(maxScorelessTurns)
+	}
+	if finalTurns >= 0 {
+		if !game.IsCrossplay(variant) {
+			return nil, errors.New("the ftl operation is only for the crossplay variant")
+		}
+		g.SetFinalTurnsLeft(finalTurns)
+	}
 	g.SetScorelessTurns(nzero)
 	g.History().StartingCgp = cgpstr
 	g.History().Uid = gid

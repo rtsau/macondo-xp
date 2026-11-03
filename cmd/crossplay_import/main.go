@@ -127,6 +127,9 @@ func run(turnsPath, outPath, final, lex string) error {
 
 	fmt.Printf("final %d-%d, bag %d, left on racks: p1 %s, p2 %s\n", g.PointsFor(0), g.PointsFor(1),
 		g.Bag().TilesRemaining(), g.RackFor(0).String(), g.RackFor(1).String())
+	if g.Playing() != pb.PlayState_GAME_OVER {
+		im.problemf("the game isn't over after the last turn (%d final turn(s) left)", g.FinalTurnsLeft())
+	}
 	if final == "" {
 		im.warnings = append(im.warnings, "no -final given, so nothing checked the scores independently")
 	} else if want := fmt.Sprintf("%d-%d", g.PointsFor(0), g.PointsFor(1)); want != final {

@@ -18,7 +18,7 @@ func (eac EndgameAdjustmentCalculator) Equity(play *move.Move, board *board.Game
 	if bag.TilesRemaining() > 0 {
 		return 0.0
 	}
-	return endgameAdjustment(play, oppRack, bag.LetterDistribution())
+	return endgameAdjustment(play, board, oppRack, bag.LetterDistribution())
 }
 
 // Type returns the type of the equity calculator.
@@ -26,7 +26,11 @@ func (eac EndgameAdjustmentCalculator) Type() string {
 	return "EndgameAdjustmentCalculator"
 }
 
-func endgameAdjustment(play *move.Move, oppRack *tilemapping.Rack, ld *tilemapping.LetterDistribution) float64 {
+func endgameAdjustment(play *move.Move, b *board.GameBoard, oppRack *tilemapping.Rack, ld *tilemapping.LetterDistribution) float64 {
+	if !b.LeftoverRacksScore() {
+		// Without a penalty or a bonus, a tile left on a rack costs nothing.
+		return 0
+	}
 	if len(play.Leave()) != 0 {
 		// This play is not going out. We should penalize it by our own score
 		// plus some constant. XXX: Determine this in a better way.

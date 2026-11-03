@@ -27,6 +27,7 @@ import (
 	"github.com/domino14/macondo/automatic"
 	"github.com/domino14/macondo/board"
 	"github.com/domino14/macondo/config"
+	"github.com/domino14/macondo/endgame/finalturns"
 	"github.com/domino14/macondo/endgame/negamax"
 	"github.com/domino14/macondo/equity"
 	"github.com/domino14/macondo/explainer"
@@ -598,6 +599,28 @@ func (sc *ShellController) challenge(cmd *shellcmd) (*Response, error) {
 	return msg(sc.game.ToDisplayText()), nil
 }
 
+// crossplayEndgame solves a Crossplay endgame. It's at most two turns, so it needs
+// none of the options of the endgame solver for other rules.
+func (sc *ShellController) crossplayEndgame() (*Response, error) {
+	if sc.solving() {
+		return nil, errMacondoSolving
+	}
+	gd, err := kwg.GetKWG(sc.game.Config().WGLConfig(), sc.game.LexiconName(),
+		kwg.WithDistribution(sc.game.Rules().LetterDistributionName()))
+	if err != nil {
+		return nil, err
+	}
+	val, seq, err := finalturns.Solve(context.Background(), sc.game.Game, gd)
+	if err != nil {
+		return nil, err
+	}
+	var result strings.Builder
+	fmt.Fprintf(&result, "Best sequence has a spread difference (value) of %+d\n", val)
+	fmt.Fprintf(&result, "Final spread after seq: %+d\n", val+sc.game.CurrentSpread())
+	result.WriteString(sc.endgameSequenceString(seq, len(seq)))
+	return msg(result.String()), nil
+}
+
 // endgameParams holds parsed parameters for endgame solving
 type endgameParams struct {
 	plies      int
@@ -749,6 +772,9 @@ func (sc *ShellController) endgameRunSync(params *endgameParams) (string, error)
 // endgameSync runs endgame synchronously and returns the result.
 // This is the preferred method for scripts.
 func (sc *ShellController) endgameSync(cmd *shellcmd) (*Response, error) {
+	if sc.game != nil && game.IsCrossplay(sc.game.Rules().Variant()) {
+		return sc.crossplayEndgame()
+	}
 	params, err := sc.endgamePrepare(cmd)
 	if err != nil {
 		return nil, err
@@ -766,6 +792,9 @@ func (sc *ShellController) endgameSync(cmd *shellcmd) (*Response, error) {
 
 // endgame runs endgame asynchronously (for interactive shell use).
 func (sc *ShellController) endgame(cmd *shellcmd) (*Response, error) {
+	if sc.game != nil && game.IsCrossplay(sc.game.Rules().Variant()) {
+		return sc.crossplayEndgame()
+	}
 	// Handle subcommands first
 	if len(cmd.args) > 0 && cmd.args[0] == "stop" {
 		if sc.endgameSolver != nil && sc.endgameSolver.IsSolving() {

@@ -242,6 +242,7 @@ func NewBasicGameRules(cfg *config.Config,
 	gameBoard := board.MakeBoard(bd)
 	if IsCrossplay(variant) {
 		gameBoard.SetBingoBonus(CrossplayBingoBonus)
+		gameBoard.SetLeftoverRacksScore(false)
 	}
 
 	rules := &GameRules{

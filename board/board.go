@@ -120,6 +120,9 @@ type GameBoard struct {
 	// bingoBonus is the bonus for playing a full rack. It lives with the
 	// premium squares because it is part of how this board scores a play.
 	bingoBonus int
+	// leftoverRacksScore is whether tiles left on a rack affect the score when the
+	// game ends, and so whether going out is worth anything.
+	leftoverRacksScore bool
 
 	// Store cross-scores with the board to avoid recalculating, but cross-sets
 	// are a movegen detail and do not belong here!
@@ -185,22 +188,23 @@ func MakeBoard(desc []string) *GameBoard {
 
 	}
 	g := &GameBoard{
-		squares:       sqs,
-		bonuses:       bs,
-		dim:           len(desc),
-		bingoBonus:    DefaultBingoBonus,
-		vCrossScores:  vc,
-		hCrossScores:  hc,
-		hCrossSets:    hcs,
-		vCrossSets:    vcs,
-		hAnchors:      hAs,
-		vAnchors:      vAs,
-		hLeftExtSets:  hle,
-		hRightExtSets: hre,
-		vLeftExtSets:  vle,
-		vRightExtSets: vre,
-		rowMul:        len(desc),
-		colMul:        1,
+		squares:            sqs,
+		bonuses:            bs,
+		dim:                len(desc),
+		bingoBonus:         DefaultBingoBonus,
+		leftoverRacksScore: true,
+		vCrossScores:       vc,
+		hCrossScores:       hc,
+		hCrossSets:         hcs,
+		vCrossSets:         vcs,
+		hAnchors:           hAs,
+		vAnchors:           vAs,
+		hLeftExtSets:       hle,
+		hRightExtSets:      hre,
+		vLeftExtSets:       vle,
+		vRightExtSets:      vre,
+		rowMul:             len(desc),
+		colMul:             1,
 	}
 	// Call Clear to set all crosses.
 	g.Clear()
@@ -219,6 +223,16 @@ func (g *GameBoard) BingoBonus() int {
 // SetBingoBonus sets the bonus for playing a full rack on this board.
 func (g *GameBoard) SetBingoBonus(bonus int) {
 	g.bingoBonus = bonus
+}
+
+// LeftoverRacksScore is whether tiles left on a rack affect the final score.
+func (g *GameBoard) LeftoverRacksScore() bool {
+	return g.leftoverRacksScore
+}
+
+// SetLeftoverRacksScore sets whether tiles left on a rack affect the final score.
+func (g *GameBoard) SetLeftoverRacksScore(scores bool) {
+	g.leftoverRacksScore = scores
 }
 
 // Dim is the dimension of the board. It assumes the board is square.
@@ -1116,6 +1130,7 @@ func (g *GameBoard) Copy() *GameBoard {
 	newg.tilesPlayed = g.tilesPlayed
 	newg.dim = g.dim
 	newg.bingoBonus = g.bingoBonus
+	newg.leftoverRacksScore = g.leftoverRacksScore
 	newg.rowMul = g.rowMul
 	newg.colMul = g.colMul
 	return newg
@@ -1142,6 +1157,7 @@ func (g *GameBoard) CopyFrom(b *GameBoard) {
 	copy(g.vRightExtSets, b.vRightExtSets)
 	g.tilesPlayed = b.tilesPlayed
 	g.bingoBonus = b.bingoBonus
+	g.leftoverRacksScore = b.leftoverRacksScore
 	g.rowMul = b.rowMul
 	g.colMul = b.colMul
 }

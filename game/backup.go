@@ -29,6 +29,7 @@ type stateBackup struct {
 	bag            *tilemapping.Bag
 	playing        pb.PlayState
 	scorelessTurns int
+	finalTurns     int
 	onturn         int
 	turnnum        int
 	players        playerStates
@@ -48,6 +49,7 @@ func (g *Game) backupState() {
 	st.bag.CopyFrom(g.bag)
 	st.playing = g.playing
 	st.scorelessTurns = g.scorelessTurns
+	st.finalTurns = g.finalTurns
 	st.players.copyFrom(g.players)
 	if g.backupMode == SimulationMode {
 		st.onturn = g.onturn
@@ -101,6 +103,7 @@ func (g *Game) SetStateStackLength(length int) {
 			bag:            g.bag.Copy(),
 			playing:        g.playing,
 			scorelessTurns: g.scorelessTurns,
+			finalTurns:     g.finalTurns,
 			players:        copyPlayers(g.players),
 		}
 	}
@@ -137,6 +140,7 @@ func (g *Game) UnplayLastMove() {
 	g.playing = b.playing
 	g.players.copyFrom(b.players)
 	g.scorelessTurns = b.scorelessTurns
+	g.finalTurns = b.finalTurns
 }
 
 // ResetToFirstState unplays all moves on the stack.
@@ -154,6 +158,7 @@ func (g *Game) ResetToFirstState() {
 	g.playing = b.playing
 	g.players.copyFrom(b.players)
 	g.scorelessTurns = b.scorelessTurns
+	g.finalTurns = b.finalTurns
 }
 
 // Copy creates a deep copy of Game for the most part. The lexicon and
@@ -162,22 +167,25 @@ func (g *Game) ResetToFirstState() {
 // and not these copies.
 func (g *Game) Copy() *Game {
 	copy := &Game{
-		config:            g.config,
-		onturn:            g.onturn,
-		turnnum:           g.turnnum,
-		board:             g.board.Copy(),
-		bag:               g.bag.Copy(),
-		lexicon:           g.lexicon,
-		crossSetGen:       g.crossSetGen,
-		alph:              g.alph,
-		playing:           g.playing,
-		scorelessTurns:    g.scorelessTurns,
-		maxScorelessTurns: g.maxScorelessTurns,
-		exchangeLimit:     g.exchangeLimit,
-		players:           copyPlayers(g.players),
-		rules:             g.rules,
-		seed:              g.seed,
-		startingPlayerIdx: g.startingPlayerIdx,
+		config:             g.config,
+		onturn:             g.onturn,
+		turnnum:            g.turnnum,
+		board:              g.board.Copy(),
+		bag:                g.bag.Copy(),
+		lexicon:            g.lexicon,
+		crossSetGen:        g.crossSetGen,
+		alph:               g.alph,
+		playing:            g.playing,
+		crossplay:          g.crossplay,
+		finalTurns:         g.finalTurns,
+		scorelessTurns:     g.scorelessTurns,
+		maxScorelessTurns:  g.maxScorelessTurns,
+		maxScorelessBackup: g.maxScorelessBackup,
+		exchangeLimit:      g.exchangeLimit,
+		players:            copyPlayers(g.players),
+		rules:              g.rules,
+		seed:               g.seed,
+		startingPlayerIdx:  g.startingPlayerIdx,
 		// stackPtr only changes during a sim, etc. This Copy should
 		// only be called at the beginning of everything.
 		stackPtr: 0,

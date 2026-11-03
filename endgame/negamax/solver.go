@@ -101,6 +101,11 @@ var (
 )
 
 // Credit: MIT-licensed https://github.com/algerbrex/blunder/blob/main/engine/search.go
+// ErrCrossplay is returned for a Crossplay game. This solver searches for how a
+// game ends under other rules, where going out ends it and leftover tiles score.
+// endgame/finalturns solves Crossplay's endgame.
+var ErrCrossplay = errors.New("the negamax endgame solver doesn't apply to Crossplay; use endgame/finalturns")
+
 type PVLine struct {
 	Moves     [MaxVariantLength]*move.Move
 	tinyMoves [MaxVariantLength]tinymove.SmallMove
@@ -2031,6 +2036,9 @@ func (s *Solver) negamax(ctx context.Context, nodeKey uint64, depth int, α, β 
 }
 
 func (s *Solver) Solve(ctx context.Context, plies int) (int16, []*move.Move, error) {
+	if game.IsCrossplay(s.game.Rules().Variant()) {
+		return 0, nil, ErrCrossplay
+	}
 	s.busy = true
 	defer func() {
 		s.busy = false
@@ -2199,6 +2207,9 @@ func (s *Solver) GetMetrics() string {
 // without having to initialize everything. The caller is responsible for
 // initializations of data structures. It is single-threaded as well.
 func (s *Solver) QuickAndDirtySolve(ctx context.Context, plies, thread int) (int16, []*move.Move, error) {
+	if game.IsCrossplay(s.game.Rules().Variant()) {
+		return 0, nil, ErrCrossplay
+	}
 	s.busy = true
 	defer func() {
 		s.busy = false

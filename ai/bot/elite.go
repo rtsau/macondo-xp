@@ -12,6 +12,7 @@ import (
 	"github.com/domino14/word-golib/kwg"
 	"github.com/domino14/word-golib/tilemapping"
 
+	"github.com/domino14/macondo/endgame/finalturns"
 	"github.com/domino14/macondo/endgame/negamax"
 	"github.com/domino14/macondo/equity"
 	"github.com/domino14/macondo/game"
@@ -57,8 +58,11 @@ func eliteBestPlay(ctx context.Context, p *BotTurnPlayer) (*move.Move, error) {
 				p.Game.RackFor(p.Game.NextPlayer()).Add(t)
 			}
 		}
+		// The tiles just assigned may have emptied the bag only now.
+		p.Game.InferFinalTurns()
 		endgamePlies = endgamePliesFor(unseen, int(p.Game.RackFor(p.Game.PlayerOnTurn()).NumTiles()))
-	} else if unseen == 8 && (p.fixedSimPlies <= 0 || HasPreendgame(p.botType)) {
+	} else if unseen == 8 && !game.IsCrossplay(p.Rules().Variant()) &&
+		(p.fixedSimPlies <= 0 || HasPreendgame(p.botType)) {
 		usePreendgame = true
 	} else {
 		moves = p.GenerateMoves(p.simPlaysOrDefault())
@@ -142,6 +146,13 @@ func endGameBest(ctx context.Context, p *BotTurnPlayer, endgamePlies int) (*move
 	gd, err := kwg.GetKWG(p.Game.Config().WGLConfig(), p.Game.LexiconName())
 	if err != nil {
 		return nil, err
+	}
+	if game.IsCrossplay(p.Rules().Variant()) {
+		_, seq, err := finalturns.Solve(ctx, p.Game, gd)
+		if err != nil {
+			return nil, err
+		}
+		return seq[0], nil
 	}
 	// Ensure the bot has its own TT (lazily allocated for the shell / interactive
 	// path; already set for autoplay where GameRunner injects a per-game table).

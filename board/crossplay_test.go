@@ -48,3 +48,19 @@ func TestBingoBonusSurvivesCopies(t *testing.T) {
 	other.CopyFrom(b)
 	is.Equal(other.BingoBonus(), 40)
 }
+
+// Test both values, since false is what a copy would get by forgetting it.
+func TestLeftoverRacksScoreSurvivesCopies(t *testing.T) {
+	is := is.New(t)
+	for _, scores := range []bool{true, false} {
+		b := MakeBoard(CrosswordGameBoard)
+		is.Equal(b.LeftoverRacksScore(), true)
+		b.SetLeftoverRacksScore(scores)
+		is.Equal(b.Copy().LeftoverRacksScore(), scores)
+
+		other := MakeBoard(CrosswordGameBoard)
+		other.SetLeftoverRacksScore(!scores)
+		other.CopyFrom(b)
+		is.Equal(other.LeftoverRacksScore(), scores)
+	}
+}

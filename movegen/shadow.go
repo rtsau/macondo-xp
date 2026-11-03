@@ -264,6 +264,11 @@ func (gen *GordonGenerator) computeBestLeaves(rack *tilemapping.Rack) {
 
 	if s.tilesInBag > 0 {
 		gen.enumerateLeaves(rack, leaveCalc, 0, 0)
+	} else if !gen.board.LeftoverRacksScore() {
+		// Nothing about the tiles kept affects the score.
+		for k := 0; k <= int(rack.NumTiles()); k++ {
+			s.bestLeaves[k] = 0
+		}
 	} else {
 		// Endgame: compute bestLeaves from tile scores directly.
 		// bestLeaves[0] = outplay bonus.
@@ -859,7 +864,7 @@ func (gen *GordonGenerator) shadowRecord() {
 		} else {
 			equity += s.bestLeaves[leaveCount]
 		}
-	} else {
+	} else if gen.board.LeftoverRacksScore() {
 		// Bag empty (endgame): adjustment depends on whether we play out.
 		if gen.tilesPlayed < s.numLettersOnRack {
 			// Not playing out: penalty based on lowest possible remaining rack score.

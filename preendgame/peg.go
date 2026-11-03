@@ -34,6 +34,11 @@ import (
 var ErrCanceledEarly = errors.New("canceled early")
 
 const InBagMaxLimit = 6
+
+// ErrCrossplay is returned for a Crossplay game. This solver's search, and the
+// way it prunes, assume how a game ends under other rules, where nobody is
+// fighting to empty the bag.
+var ErrCrossplay = errors.New("the pre-endgame solver doesn't support Crossplay yet")
 const TieBreakerPlays = 20
 
 type PEGOutcome int
@@ -628,6 +633,9 @@ func (s *Solver) trace(indent int, format string, args ...any) {
 }
 
 func (s *Solver) Solve(ctx context.Context) ([]*PreEndgamePlay, error) {
+	if game.IsCrossplay(s.game.Rules().Variant()) {
+		return nil, ErrCrossplay
+	}
 	s.busy = true
 	defer func() {
 		s.busy = false

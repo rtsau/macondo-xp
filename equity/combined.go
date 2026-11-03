@@ -74,7 +74,7 @@ func (csc CombinedStaticCalculator) Equity(play *move.Move, board *board.GameBoa
 		}
 	} else {
 		// The bag is empty.
-		otherAdjustments += endgameAdjustment(play, oppRack, bag.LetterDistribution())
+		otherAdjustments += endgameAdjustment(play, board, oppRack, bag.LetterDistribution())
 	}
 
 	return float64(score) + leaveAdjustment + otherAdjustments

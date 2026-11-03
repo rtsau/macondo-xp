@@ -31,7 +31,9 @@ const (
 
 	RackTileLimit = 7
 
-	DefaultMaxScorelessTurns  = 6
+	DefaultMaxScorelessTurns = 6
+	// NoScorelessLimit means that no number of scoreless turns ends the game.
+	NoScorelessLimit          = 0
 	CurrentGameHistoryVersion = 2
 )
 
@@ -61,6 +63,13 @@ type Game struct {
 
 	playing pb.PlayState
 
+	// crossplay caches whether the rules are Crossplay's, for the move paths.
+	crossplay bool
+	// finalTurns is how many turns are left in a Crossplay game once its bag is
+	// empty: the opponent's and the last drawer's, then just the last drawer's.
+	// It's 0 before that, and once the game is over.
+	finalTurns int
+
 	scorelessTurns int
 	// lastScorelessTurns - scorelessTurns the turn before this one.
 	// we keep track of this as we need it for "undoing" a Zobrist hash.
@@ -86,7 +95,10 @@ type Game struct {
 	// sturnsBackup - a variable used to hold value of scorelessTurns prior to
 	// putting game in endgame mode.
 	sturnsBackup int
-	stripBackup  [board.MaxBoardDim]tilemapping.MachineLetter
+	// maxScorelessBackup holds maxScorelessTurns while in endgame mode in
+	// Crossplay, where it isn't always the default.
+	maxScorelessBackup int
+	stripBackup        [board.MaxBoardDim]tilemapping.MachineLetter
 
 	tritonClient *triton.TritonClient
 	// Feature buffers reused by MLEvaluateMoves from one request to the next
@@ -121,6 +133,7 @@ func (g *Game) Rules() *GameRules {
 
 func (g *Game) SetRules(r *GameRules) {
 	g.rules = r
+	g.crossplay = IsCrossplay(r.Variant())
 	g.lexicon = r.lexicon
 }
 
@@ -193,7 +206,11 @@ func NewGame(rules *GameRules, playerinfo []*pb.PlayerInfo) (*Game, error) {
 	game.config = rules.Config()
 	game.exchangeLimit = rules.exchangeLimit
 	game.rules = rules
+	game.crossplay = IsCrossplay(rules.Variant())
 	game.maxScorelessTurns = DefaultMaxScorelessTurns
+	if game.crossplay {
+		game.maxScorelessTurns = NoScorelessLimit
+	}
 	game.bag = game.letterDistribution.MakeBag()
 	game.players = make([]*playerState, len(playerinfo))
 	ids := map[string]bool{}
@@ -321,7 +338,10 @@ func NewFromSnapshot(rules *GameRules, players []*pb.PlayerInfo, lastKnownRacks 
 	game.playing = pb.PlayState_PLAYING
 	game.history.PlayState = game.playing
 
-	if game.bag.TilesRemaining() == 0 && (game.RackFor(0).NumTiles() == 0 || game.RackFor(1).NumTiles() == 0) {
+	if game.crossplay {
+		// An empty rack doesn't end a Crossplay game.
+		game.InferFinalTurns()
+	} else if game.bag.TilesRemaining() == 0 && (game.RackFor(0).NumTiles() == 0 || game.RackFor(1).NumTiles() == 0) {
 		game.playing = pb.PlayState_GAME_OVER
 		game.history.PlayState = game.playing
 		log.Info().Msg("this game is already over")
@@ -396,6 +416,7 @@ func (g *Game) StartGame() {
 	g.turnnum = 0
 	g.scorelessTurns = 0
 	g.lastScorelessTurns = 0
+	g.finalTurns = 0
 	g.onturn = 0
 	g.lastWordsFormed = nil
 }
@@ -549,6 +570,10 @@ func (g *Game) SetScorelessTurns(n int) {
 }
 
 func (g *Game) SetEndgameMode(m bool) {
+	if g.crossplay {
+		g.setCrossplayEndgameMode(m)
+		return
+	}
 	if m {
 		g.sturnsBackup = g.scorelessTurns
 		// Set max scoreless turns to 2 in the endgame so we don't generate
@@ -604,6 +629,7 @@ func (g *Game) playMove(m *move.Move, addToHistory bool, millis int, updateCross
 		return err
 	}
 
+	bagBefore := g.bag.TilesRemaining()
 	if g.backupMode != NoBackup {
 		g.backupState()
 	}
@@ -646,7 +672,7 @@ func (g *Game) playMove(m *move.Move, addToHistory bool, millis int, updateCross
 			g.addEventToHistory(evt)
 		}
 
-		if g.players[g.onturn].rack.NumTiles() == 0 {
+		if !g.crossplay && g.players[g.onturn].rack.NumTiles() == 0 {
 			// make sure not in sim mode. sim mode (montecarlo, endgame, etc) does not
 			// generate end-of-game passes.
 			if g.backupMode != SimulationMode && g.history != nil && g.history.ChallengeRule != pb.ChallengeRule_VOID {
@@ -713,12 +739,8 @@ func (g *Game) playMove(m *move.Move, addToHistory bool, millis int, updateCross
 		}
 	}
 
-	gameEnded, err := g.handleConsecutiveScorelessTurns(addToHistory)
-	if err != nil {
+	if err := g.finishTurn(bagBefore, addToHistory); err != nil {
 		return err
-	}
-	if !gameEnded {
-		g.onturn = (g.onturn + 1) % len(g.players)
 	}
 
 	g.turnnum++
@@ -750,6 +772,7 @@ func (g *Game) PlaySmallMoveNoCrossSet(m *tinymove.SmallMove) (
 func (g *Game) playSmallMove(m *tinymove.SmallMove, updateCrossSets bool) (
 	*[board.MaxBoardDim]tilemapping.MachineLetter, error) {
 
+	bagBefore := g.bag.TilesRemaining()
 	if g.backupMode != NoBackup {
 		g.backupState()
 	}
@@ -778,19 +801,15 @@ func (g *Game) playSmallMove(m *tinymove.SmallMove, updateCrossSets bool) (
 		}
 		// XXX: assume we are only using this for endgames! Drawing doesn't work
 		// right now.
-		if g.players[g.onturn].rack.NumTiles() == 0 {
+		if !g.crossplay && g.players[g.onturn].rack.NumTiles() == 0 {
 			g.playing = pb.PlayState_GAME_OVER
 			g.endOfGameCalcs(g.onturn, false)
 		}
 
 	}
 
-	gameEnded, err := g.handleConsecutiveScorelessTurns(false)
-	if err != nil {
+	if err := g.finishTurn(bagBefore, false); err != nil {
 		return nil, err
-	}
-	if !gameEnded {
-		g.onturn = (g.onturn + 1) % len(g.players)
 	}
 
 	g.turnnum++
@@ -808,6 +827,7 @@ func (g *Game) playSmallMove(m *tinymove.SmallMove, updateCrossSets bool) (
 func (g *Game) PlaySmallMoveWithDraw(m *tinymove.SmallMove) (
 	*[board.MaxBoardDim]tilemapping.MachineLetter, error) {
 
+	bagBefore := g.bag.TilesRemaining()
 	if g.backupMode != NoBackup {
 		g.backupState()
 	}
@@ -838,18 +858,14 @@ func (g *Game) PlaySmallMoveWithDraw(m *tinymove.SmallMove) (
 			g.players[g.onturn].rack.Add(g.players[g.onturn].placeholderRack[i])
 		}
 
-		if g.players[g.onturn].rack.NumTiles() == 0 {
+		if !g.crossplay && g.players[g.onturn].rack.NumTiles() == 0 {
 			g.playing = pb.PlayState_GAME_OVER
 			g.endOfGameCalcs(g.onturn, false)
 		}
 	}
 
-	gameEnded, err := g.handleConsecutiveScorelessTurns(false)
-	if err != nil {
+	if err := g.finishTurn(bagBefore, false); err != nil {
 		return nil, err
-	}
-	if !gameEnded {
-		g.onturn = (g.onturn + 1) % len(g.players)
 	}
 
 	g.turnnum++
@@ -873,7 +889,28 @@ func (g *Game) AddFinalScoresToHistory() {
 	log.Debug().Interface("finalscores", g.history.FinalScores).Msg("added-final-scores")
 }
 
+// finishTurn ends the game if this turn finished it, and moves on to the next
+// player. bagBefore is how many tiles the bag held before the turn.
+func (g *Game) finishTurn(bagBefore int, addToHistory bool) error {
+	if g.crossplay {
+		g.finishCrossplayTurn(bagBefore, addToHistory)
+		return nil
+	}
+	gameEnded, err := g.handleConsecutiveScorelessTurns(addToHistory)
+	if err != nil {
+		return err
+	}
+	if !gameEnded {
+		g.onturn = (g.onturn + 1) % len(g.players)
+	}
+	return nil
+}
+
 func (g *Game) handleConsecutiveScorelessTurns(addToHistory bool) (bool, error) {
+	if g.crossplay {
+		// A challenged-off play gets here, and Crossplay has no penalties.
+		return false, nil
+	}
 	var ended bool
 	if g.scorelessTurns == g.maxScorelessTurns {
 		ended = true
@@ -1016,6 +1053,7 @@ func (g *Game) PlayToTurn(turnnum int) error {
 	g.players.resetRacks()
 	g.turnnum = 0
 	g.onturn = 0
+	g.finalTurns = 0
 	g.playing = pb.PlayState_PLAYING
 	g.history.PlayState = g.playing
 	var t int
@@ -1089,6 +1127,11 @@ func (g *Game) PlayToTurn(turnnum int) error {
 	}
 
 	for _, p := range g.players {
+		if g.crossplay {
+			// An empty rack doesn't end a Crossplay game. The replay knows
+			// whether it's over already.
+			break
+		}
 		if p.rack.NumTiles() == 0 {
 			log.Debug().Msgf("Player %v has no tiles, game might be over.", p)
 			if len(g.history.FinalScores) == 0 {
@@ -1125,6 +1168,8 @@ func (g *Game) PlayTurn(t int) error {
 		return err
 	}
 	log.Trace().Int("movetype", int(m.Action())).Msg("move-action")
+	// Only a play can change how many tiles are in the bag.
+	bagBefore := g.bag.TilesRemaining()
 	switch m.Action() {
 	case move.MoveTypePlay:
 		// Set the rack for the user on turn to the rack in the history.
@@ -1142,6 +1187,7 @@ func (g *Game) PlayTurn(t int) error {
 		// We back up the board and bag since there's a possibility
 		// this play will have to be taken back, if it's a challenged phony.
 		g.backupState()
+		bagBefore = g.bag.TilesRemaining()
 
 		g.board.PlayMove(m)
 		g.crossSetGen.UpdateForMove(g.board, m)
@@ -1207,6 +1253,13 @@ func (g *Game) PlayTurn(t int) error {
 	default:
 		// Nothing
 
+	}
+
+	if g.crossplay {
+		switch m.Action() {
+		case move.MoveTypePlay, move.MoveTypeExchange, move.MoveTypePass:
+			g.replayCrossplayTurn(bagBefore)
+		}
 	}
 
 	g.turnnum++
@@ -1507,6 +1560,10 @@ func (g *Game) ToCGP(formatForBot bool) string {
 	}
 	if IsCrossplay(g.rules.Variant()) {
 		cgp += fmt.Sprintf(" var %s;", g.rules.Variant())
+		// Racks don't say who moves last, or whether it has already happened.
+		if g.finalTurns > 0 || g.playing == pb.PlayState_GAME_OVER {
+			cgp += fmt.Sprintf(" ftl %d;", g.finalTurns)
+		}
 	}
 
 	return cgp

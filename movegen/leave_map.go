@@ -45,7 +45,9 @@ func (gen *GordonGenerator) populateLeaveMapIncremental(
 				val += gen.pegValues[bagPlusSeven]
 			}
 		} else {
-			if numOnRack > 0 {
+			if !gen.board.LeftoverRacksScore() {
+				val = 0
+			} else if numOnRack > 0 {
 				leaveScore := 0
 				for lml := tilemapping.MachineLetter(0); int(lml) < len(rack.LetArr); lml++ {
 					leaveScore += rack.LetArr[lml] * gen.letterDistribution.Score(lml)
@@ -86,12 +88,13 @@ func (gen *GordonGenerator) populateLeaveMapIncremental(
 		// incrementNodeToML: find sibling with tile ml
 		curNode, curWord = incrementNodeToML(leaveKWG, curNode, curWord, ml)
 		if curNode == 0 {
-			// Dead path — fill zeros for remaining subsets
+			// Dead path — fill zeros for this subset and those with more copies.
+			gen.populateLeaveMapZero(rack, ml+1)
 			for j := i + 1; j < numthis; j++ {
 				gen.leavemap.AddLetter(ml, rack.LetArr[ml])
 				rack.Add(ml)
+				gen.populateLeaveMapZero(rack, ml+1)
 			}
-			gen.populateLeaveMapZero(rack, ml+1)
 			return
 		}
 
@@ -120,6 +123,8 @@ func (gen *GordonGenerator) populateLeaveMapZero(rack *tilemapping.Rack, ml tile
 			if bagPlusSeven >= 0 && bagPlusSeven < len(gen.pegValues) {
 				val = gen.pegValues[bagPlusSeven]
 			}
+		} else if !gen.board.LeftoverRacksScore() {
+			val = 0
 		} else if numOnRack > 0 {
 			leaveScore := 0
 			for lml := tilemapping.MachineLetter(0); int(lml) < len(rack.LetArr); lml++ {
@@ -140,16 +145,18 @@ func (gen *GordonGenerator) populateLeaveMapZero(rack *tilemapping.Rack, ml tile
 		}
 		return
 	}
-	gen.populateLeaveMapZero(rack, ml+1)
+	// As in populateLeaveMapIncremental: start from no copies of ml in the leave,
+	// and add them back, which leaves the rack as it was.
 	numthis := rack.LetArr[ml]
+	for i := 0; i < numthis; i++ {
+		rack.Take(ml)
+		gen.leavemap.TakeLetter(ml, rack.LetArr[ml])
+	}
+	gen.populateLeaveMapZero(rack, ml+1)
 	for i := 0; i < numthis; i++ {
 		gen.leavemap.AddLetter(ml, rack.LetArr[ml])
 		rack.Add(ml)
 		gen.populateLeaveMapZero(rack, ml+1)
-	}
-	for i := 0; i < numthis; i++ {
-		rack.Take(ml)
-		gen.leavemap.TakeLetter(ml, rack.LetArr[ml])
 	}
 }
 

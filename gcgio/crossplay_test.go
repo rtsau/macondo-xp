@@ -21,9 +21,6 @@ import (
 // them only guards against regressions. The independent evidence that our board,
 // tile values and sweep bonus are right is the final score, 437-434, which the
 // app reported.
-//
-// TODO: once the Crossplay endgame is implemented, assert that the game is over
-// after the last event, with the leftover tiles below carrying no penalty.
 func TestCrossplayRealGame(t *testing.T) {
 	is := is.New(t)
 
@@ -83,6 +80,13 @@ func TestCrossplayRealGame(t *testing.T) {
 			is.Equal(g.Bag().TilesRemaining(), 6)
 		case 19:
 			is.Equal(g.Bag().TilesRemaining(), 0)
+			is.Equal(g.FinalTurnsLeft(), 2)
+			is.Equal(g.Playing(), pb.PlayState_PLAYING)
+		case 20:
+			is.Equal(g.FinalTurnsLeft(), 1)
+			is.Equal(g.Playing(), pb.PlayState_PLAYING)
+		case 21:
+			is.Equal(g.Playing(), pb.PlayState_GAME_OVER)
 		}
 	}
 
@@ -93,21 +97,27 @@ func TestCrossplayRealGame(t *testing.T) {
 	// With these, the 94 tiles on the board account for all 100.
 	is.Equal(g.RackFor(0).String(), "AIU")
 	is.Equal(g.RackFor(1).String(), "RSS")
+	// The app's score is the one reached with those tiles still on the racks, so
+	// the game's end costs nothing for them.
+	is.Equal(g.Playing(), pb.PlayState_GAME_OVER)
 
 	// The parsed history should load to the same score.
 	loaded, err := game.NewFromHistory(history, rules, len(history.Events))
 	is.NoErr(err)
 	is.Equal(loaded.PointsFor(0), 437)
 	is.Equal(loaded.PointsFor(1), 434)
+	is.Equal(loaded.Playing(), pb.PlayState_GAME_OVER)
+	// One turn earlier, the last drawer still has a move.
+	earlier, err := game.NewFromHistory(history, rules, len(history.Events)-1)
+	is.NoErr(err)
+	is.Equal(earlier.Playing(), pb.PlayState_PLAYING)
+	is.Equal(earlier.FinalTurnsLeft(), 1)
 }
 
 // TestCrossplayRealGameWithSwapsAndPass replays a second real game, which has two
 // swaps and a pass. As in TestCrossplayRealGame, the final score is the app's and
 // the only independent check. It's also real evidence for how the app treats these
 // turns: each one counts as a turn, and neither changes the score.
-//
-// TODO: once the Crossplay endgame is implemented, assert that the game is over
-// after the last event, with the leftover tiles below carrying no penalty.
 func TestCrossplayRealGameWithSwapsAndPass(t *testing.T) {
 	is := is.New(t)
 
@@ -170,6 +180,12 @@ func TestCrossplayRealGameWithSwapsAndPass(t *testing.T) {
 		case 27:
 			is.Equal(g.Bag().TilesRemaining(), 0)
 			is.Equal(g.RackFor(0).NumTiles(), uint8(7))
+			is.Equal(g.FinalTurnsLeft(), 2)
+		case 28:
+			is.Equal(g.FinalTurnsLeft(), 1)
+			is.Equal(g.Playing(), pb.PlayState_PLAYING)
+		case 29:
+			is.Equal(g.Playing(), pb.PlayState_GAME_OVER)
 		}
 	}
 
@@ -182,9 +198,15 @@ func TestCrossplayRealGameWithSwapsAndPass(t *testing.T) {
 	// third blank, which was still on a rack at the end.
 	is.Equal(g.RackFor(0).String(), "?LN")
 	is.Equal(g.RackFor(1).String(), "DS")
+	is.Equal(g.Playing(), pb.PlayState_GAME_OVER)
 
 	loaded, err := game.NewFromHistory(history, rules, len(history.Events))
 	is.NoErr(err)
 	is.Equal(loaded.PointsFor(0), 372)
 	is.Equal(loaded.PointsFor(1), 409)
+	is.Equal(loaded.Playing(), pb.PlayState_GAME_OVER)
+	earlier, err := game.NewFromHistory(history, rules, len(history.Events)-1)
+	is.NoErr(err)
+	is.Equal(earlier.Playing(), pb.PlayState_PLAYING)
+	is.Equal(earlier.FinalTurnsLeft(), 1)
 }
