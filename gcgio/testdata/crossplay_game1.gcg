@@ -1,0 +1,29 @@
+#character-encoding UTF-8
+#description NYT Crossplay game transcribed from the coach view. Racks and moves are from the app; scores are derived by replaying them.
+#player1 p1 Player One
+#player2 p2 Player Two
+#lexicon NWL23
+#board-layout CrossplayGame
+#tile-distribution crossplay
+#game-type crossplay
+>p1: OAFRNKN 8D FRANK +28 28
+>p2: ?QAFMIL E4 FAQI. +37 37
+>p1: OOERDNB D1 BROOD +39 67
+>p2: ?CEIMNL F5 MIN. +37 74
+>p1: LH?PDEN 2B HE.D +14 81
+>p2: ?ACELBI H2 CrABLI.E +80 154
+>p1: PGAL?NI D8 .LApPING +97 178
+>p2: EWUSIWA E10 WE +33 187
+>p1: OGDTEHS F11 HOG +24 202
+>p2: TISUAW? 12A WAS. +30 217
+>p1: SEDTTOP A2 SPOTTED +84 286
+>p2: EITUMT? I9 TIMEoUT +55 272
+>p1: DOEELGS 15I .OLED +21 307
+>p2: NATREVJ B11 J.VA +36 308
+>p1: OEXSZGI B6 OX +52 359
+>p2: IEONTNR 4H .NOINTER +67 375
+>p1: AESIZGE L1 AZI.E +42 401
+>p2: LSCUAHE 2J HA.EL +34 409
+>p1: EOGEYTS O3 G.EYEST +14 415
+>p2: RVUCRSS 7K CURV. +25 434
+>p1: OUYAEIR 14L YORE +22 437
