@@ -35,8 +35,8 @@ func TestWMPIsOnlyUsedWhenItFitsTheTiles(t *testing.T) {
 	}
 }
 
-// Crossplay has no leave values yet. Until it does, a calculator must use none
-// at all, and not NWL23's, which are for other tiles and other rules.
+// A calculator must never use NWL23's leaves, which are for other tiles and other
+// rules: it gets Crossplay's leaves if they exist, or else none at all.
 func TestCrossplayDoesNotBorrowLeaves(t *testing.T) {
 	is := is.New(t)
 	blank := tilemapping.MachineWord{0} // a lone blank is valuable in any set of leaves
@@ -47,5 +47,5 @@ func TestCrossplayDoesNotBorrowLeaves(t *testing.T) {
 
 	cp, err := equity.NewExhaustiveLeaveCalculator("NWL23", DefaultConfig, game.CrossplayLeavesFilename)
 	is.NoErr(err)
-	is.Equal(cp.LeaveValue(blank), 0.0)
+	is.True(cp.LeaveValue(blank) != classic.LeaveValue(blank))
 }

@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/domino14/word-golib/kwg"
@@ -155,7 +156,12 @@ type AutomaticRunnerPlayer struct {
 // Init initializes the runner
 func (r *GameRunner) Init(players []AutomaticRunnerPlayer) error {
 
-	rules, err := game.NewBasicGameRules(r.config, r.lexicon, board.CrosswordGameLayout, r.letterDistribution, game.CrossScoreAndSet, game.VarClassic)
+	// Crossplay's tiles are only for Crossplay, so asking for them selects it.
+	boardLayout, variant := board.CrosswordGameLayout, game.VarClassic
+	if strings.EqualFold(r.letterDistribution, game.CrossplayLetterDistribution) {
+		boardLayout, variant = board.CrossplayLayout, game.VarCrossplay
+	}
+	rules, err := game.NewBasicGameRules(r.config, r.lexicon, boardLayout, r.letterDistribution, game.CrossScoreAndSet, variant)
 	if err != nil {
 		return err
 	}
@@ -170,6 +176,11 @@ func (r *GameRunner) Init(players []AutomaticRunnerPlayer) error {
 	r.game, err = game.NewGame(rules, playerInfos)
 	if err != nil {
 		return err
+	}
+	if game.IsCrossplay(variant) {
+		// Crossplay itself has no limit, but bots that keep passing or swapping
+		// would never finish a game.
+		r.game.SetMaxScorelessTurns(game.DefaultMaxScorelessTurns)
 	}
 
 	gd, err := kwg.GetKWG(r.config.WGLConfig(), r.lexicon)

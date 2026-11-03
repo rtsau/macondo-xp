@@ -1745,6 +1745,12 @@ func applyPlayerOverrides(p *pb.AutoplayPlayerConfig, options CmdOptions, suffix
 			p.BotCode = pb.BotRequest_BotCode(code)
 		}
 	}
+	if v := options.String("leavefile" + suffix); v != "" {
+		p.LeaveFile = v
+	}
+	if v := options.String("pegfile" + suffix); v != "" {
+		p.PegFile = v
+	}
 	if v, err := options.IntDefault("minsimplies"+suffix, -1); err == nil && v >= 0 {
 		p.MinSimPlies = int32(v)
 	}

@@ -126,11 +126,16 @@ func (g GameRules) ExchangeLimit() int {
 }
 
 // LeavesFileOr returns the leave file a game under these rules should use, where
-// file is the choice it would make otherwise. Crossplay always uses its own, so
-// that it can't be evaluated with leaves for another game.
+// file is the choice it would make otherwise. In Crossplay, the names that ask for a
+// lexicon's usual leaves mean its own instead, so that it can't be evaluated with
+// leaves for another game. Any other name is a specific file someone asked for, such
+// as a candidate being trained.
 func (g GameRules) LeavesFileOr(file string) string {
 	if IsCrossplay(g.variant) {
-		return CrossplayLeavesFilename
+		switch file {
+		case "", "leaves.klv2", "super-leaves.klv2":
+			return CrossplayLeavesFilename
+		}
 	}
 	return file
 }

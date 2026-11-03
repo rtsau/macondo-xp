@@ -178,7 +178,9 @@ func TestCrossplayLeavesFile(t *testing.T) {
 	cp, err := NewBasicGameRules(DefaultConfig, "NWL23", "", "", CrossScoreAndSet, VarCrossplay)
 	is.NoErr(err)
 	is.Equal(cp.LeavesFileOr(""), CrossplayLeavesFilename)
+	is.Equal(cp.LeavesFileOr("leaves.klv2"), CrossplayLeavesFilename)
 	is.Equal(cp.LeavesFileOr("super-leaves.klv2"), CrossplayLeavesFilename)
+	is.Equal(cp.LeavesFileOr("candidate.klv2"), "candidate.klv2") // for training
 
 	classic, err := NewBasicGameRules(DefaultConfig, "NWL23", board.CrosswordGameLayout, "english", CrossScoreAndSet, VarClassic)
 	is.NoErr(err)
