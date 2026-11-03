@@ -10,6 +10,7 @@ import (
 	"github.com/domino14/macondo/board"
 	"github.com/domino14/macondo/game"
 	pb "github.com/domino14/macondo/gen/api/proto/macondo"
+	"github.com/domino14/macondo/move"
 )
 
 // TestCrossplayRealGame replays a real game of NYT Crossplay, transcribed from
@@ -98,4 +99,92 @@ func TestCrossplayRealGame(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(loaded.PointsFor(0), 437)
 	is.Equal(loaded.PointsFor(1), 434)
+}
+
+// TestCrossplayRealGameWithSwapsAndPass replays a second real game, which has two
+// swaps and a pass. As in TestCrossplayRealGame, the final score is the app's and
+// the only independent check. It's also real evidence for how the app treats these
+// turns: each one counts as a turn, and neither changes the score.
+//
+// TODO: once the Crossplay endgame is implemented, assert that the game is over
+// after the last event, with the leftover tiles below carrying no penalty.
+func TestCrossplayRealGameWithSwapsAndPass(t *testing.T) {
+	is := is.New(t)
+
+	history, err := ParseGCG(DefaultConfig, filepath.Join("testdata", "crossplay_game2.gcg"))
+	is.NoErr(err)
+	is.Equal(len(history.Events), 29)
+
+	rules, err := game.NewBasicGameRules(DefaultConfig, "NWL23", board.CrossplayLayout,
+		game.CrossplayLetterDistribution, game.CrossScoreAndSet, game.VarCrossplay)
+	is.NoErr(err)
+	g, err := game.NewGame(rules, history.Players)
+	is.NoErr(err)
+	g.StartGame()
+	g.SetChallengeRule(pb.ChallengeRule_VOID)
+	alph := g.Alphabet()
+
+	swaps, passes := 0, 0
+	for i, evt := range history.Events {
+		is.Equal(int(evt.PlayerIndex), g.PlayerOnTurn())
+		is.NoErr(g.SetRackFor(int(evt.PlayerIndex), tilemapping.RackFromString(evt.Rack, alph)))
+		rack, err := tilemapping.ToMachineWord(evt.Rack, alph)
+		is.NoErr(err)
+
+		var m *move.Move
+		switch evt.Type {
+		case pb.GameEvent_EXCHANGE:
+			swaps++
+			swapped, err := tilemapping.ToMachineWord(evt.Exchanged, alph)
+			is.NoErr(err)
+			leave, err := tilemapping.Leave(rack, swapped, false)
+			is.NoErr(err)
+			m = move.NewExchangeMove(swapped, leave, alph)
+		case pb.GameEvent_PASS:
+			passes++
+			m = move.NewPassMove(rack, alph)
+		default:
+			m, err = g.CreateAndScorePlacementMove(evt.Position, evt.PlayedTiles, evt.Rack, false)
+			is.NoErr(err)
+			if m.Score() != int(evt.Score) {
+				t.Errorf("event %d (%s %s): engine scored %d, file has %d",
+					i+1, evt.Position, evt.PlayedTiles, m.Score(), evt.Score)
+			}
+		}
+		_, err = g.ValidateMove(m)
+		is.NoErr(err)
+
+		before := g.PointsFor(int(evt.PlayerIndex))
+		bag := g.Bag().TilesRemaining()
+		is.NoErr(g.PlayMove(m, false, 0))
+		if m.Action() != move.MoveTypePlay {
+			is.Equal(g.PointsFor(int(evt.PlayerIndex)), before)
+			is.Equal(g.Bag().TilesRemaining(), bag)
+		}
+
+		// RUG, the 27th play, plays two tiles and draws the last two. Its player
+		// moved first, and moves last, with one more turn than their opponent.
+		switch i + 1 {
+		case 26:
+			is.Equal(g.Bag().TilesRemaining(), 2)
+		case 27:
+			is.Equal(g.Bag().TilesRemaining(), 0)
+			is.Equal(g.RackFor(0).NumTiles(), uint8(7))
+		}
+	}
+
+	is.Equal(swaps, 2)
+	is.Equal(passes, 1)
+	// The final score that the app reported.
+	is.Equal(g.PointsFor(0), 372)
+	is.Equal(g.PointsFor(1), 409)
+	// With these, the 95 tiles on the board account for all 100, including the
+	// third blank, which was still on a rack at the end.
+	is.Equal(g.RackFor(0).String(), "?LN")
+	is.Equal(g.RackFor(1).String(), "DS")
+
+	loaded, err := game.NewFromHistory(history, rules, len(history.Events))
+	is.NoErr(err)
+	is.Equal(loaded.PointsFor(0), 372)
+	is.Equal(loaded.PointsFor(1), 409)
 }

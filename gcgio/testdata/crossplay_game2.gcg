@@ -1,0 +1,37 @@
+#character-encoding UTF-8
+#description NYT Crossplay game transcribed from the coach view. Racks and moves are from the app; scores are derived by replaying them.
+#player1 p1 Player One
+#player2 p2 Player Two
+#lexicon NWL23
+#board-layout CrossplayGame
+#tile-distribution crossplay
+#game-type crossplay
+>p1: ANEHZAU 8H HAZE +25 25
+>p2: PIEKHIU K6 KE.P +23 23
+>p1: SAREANU L8 RAN +42 67
+>p2: ETIAHIU -IIU +0 23
+>p1: ENUAESO 9I NA.. +19 86
+>p2: NHATEWA 11J WAT +21 44
+>p1: OUOESED 12H DOE +14 100
+>p2: NHAEPOR J5 HO +17 61
+>p1: ?UOOESI -IOOU +0 100
+>p2: TANEPER L1 RETAPE +35 96
+>p1: IEEGSE? 4L .GEE +21 121
+>p2: YRNTDIQ N2 TR.NDY +36 132
+>p1: IAU?IES O6 EAU +14 135
+>p2: EOSOIIQ O1 QI +33 165
+>p1: SEDII?O 4D IODInES +61 196
+>p2: EOSOXIN D1 NIX.E +36 201
+>p1: LGWRVIO 5C W. +11 207
+>p2: COSOAVT - +0 201
+>p1: MOVLIGR 5A VO..R +16 223
+>p2: COSOAVT A3 VA. +39 240
+>p1: ML?AIGO 1A MAG.OLIa +59 282
+>p2: OCTUSYO 6D SCOUT +39 279
+>p1: IIBJCOM 10E COMBI +25 307
+>p2: OEYSGTF 11F FOE +38 317
+>p1: TERRJLI 12C JILT +21 328
+>p2: DSYTGLB D11 B.LGY +45 362
+>p1: RNUL?ER 14B RU. +14 342
+>p2: DITSASH A11 SAITH +47 409
+>p1: SN?EFRL 12L SERF +30 372
