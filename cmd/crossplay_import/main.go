@@ -29,6 +29,7 @@ import (
 	"github.com/domino14/macondo/game"
 	"github.com/domino14/macondo/gcgio"
 	pb "github.com/domino14/macondo/gen/api/proto/macondo"
+	"github.com/domino14/macondo/move"
 )
 
 type tile struct {
@@ -37,14 +38,24 @@ type tile struct {
 	Value  int    `json:"value"`
 }
 
+// The values of turn.Action. A play can leave it out.
+const (
+	actionPlay = "play"
+	actionSwap = "swap"
+	actionPass = "pass"
+)
+
 type turn struct {
 	Turn     int    `json:"turn"`
 	Player   string `json:"player"`
+	Action   string `json:"action"`
 	Word     string `json:"word"`
 	Rack     string `json:"rack"`
 	NewTiles []tile `json:"new_tiles"`
 	Start    string `json:"start"`
 	Dir      string `json:"dir"`
+	// Swapped is the tiles a swap put back, as the header names them.
+	Swapped string `json:"swapped"`
 }
 
 // importer holds the problems found so far, which are errors in the
@@ -167,9 +178,19 @@ func (im *importer) replay(g *game.Game, rules *game.GameRules, turns []turn) ([
 		if i > 0 && t.Player == turns[i-1].Player {
 			im.problemf("%s: %s moved twice in a row", label, t.Player)
 		}
-		if len(t.NewTiles) == 0 {
-			// We haven't seen how the app shows a pass or a swap yet.
-			return nil, fmt.Errorf("%s: no new tiles; passes and swaps aren't supported yet", label)
+		// Only a turn the app labeled as a pass or swap can place nothing, so that
+		// a misread play can't turn into one here.
+		switch t.Action {
+		case "", actionPlay:
+			if len(t.NewTiles) == 0 {
+				return nil, fmt.Errorf("%s: no new tiles, but it isn't marked as a pass or swap", label)
+			}
+		case actionSwap, actionPass:
+			if len(t.NewTiles) != 0 {
+				im.problemf("%s: a %s can't place tiles", label, t.Action)
+			}
+		default:
+			return nil, fmt.Errorf("%s: bad action %q", label, t.Action)
 		}
 		rack := tally(t.Rack)
 		if len(t.Rack) > game.RackTileLimit {
@@ -179,6 +200,15 @@ func (im *importer) replay(g *game.Game, rules *game.GameRules, turns []turn) ([
 			if rack[letter] < n {
 				im.problemf("%s: rack %s is missing %s, kept from this player's last turn", label, t.Rack, letter)
 			}
+		}
+
+		if t.Action == actionSwap || t.Action == actionPass {
+			line, err := im.playNonScoring(g, firstPlayer, label, t, kept)
+			if err != nil {
+				return nil, err
+			}
+			lines = append(lines, line)
+			continue
 		}
 
 		// Check each new tile, and work out what's left on the rack.
@@ -252,6 +282,65 @@ func (im *importer) replay(g *game.Game, rules *game.GameRules, turns []turn) ([
 			strconv.Itoa(m.Score()), g.PointsFor(pidx)))
 	}
 	return lines, nil
+}
+
+// playNonScoring plays a swap or a pass and returns its GCG line.
+func (im *importer) playNonScoring(g *game.Game, firstPlayer, label string, t turn, kept map[string]map[string]int) (string, error) {
+	alph := g.Alphabet()
+	leave := tally(t.Rack)
+	if t.Action == actionSwap {
+		if t.Swapped == "" {
+			return "", fmt.Errorf("%s: a swap needs the tiles that were swapped", label)
+		}
+		for _, letter := range strings.Split(t.Swapped, "") {
+			if leave[letter] == 0 {
+				im.problemf("%s: swapped %s isn't on rack %s", label, letter, t.Rack)
+			}
+			leave[letter]--
+		}
+	}
+	kept[t.Player] = leave
+
+	pidx := 1
+	if t.Player == firstPlayer {
+		pidx = 0
+	}
+	if pidx != g.PlayerOnTurn() {
+		return "", fmt.Errorf("%s: player %d isn't on turn", label, pidx+1)
+	}
+	if err := g.SetRackFor(pidx, tilemapping.RackFromString(t.Rack, alph)); err != nil {
+		return "", fmt.Errorf("%s: rack %s uses tiles that are already gone: %w", label, t.Rack, err)
+	}
+
+	rack, err := tilemapping.ToMachineWord(t.Rack, alph)
+	if err != nil {
+		return "", fmt.Errorf("%s: bad rack %q: %w", label, t.Rack, err)
+	}
+	var m *move.Move
+	position := "-"
+	if t.Action == actionSwap {
+		swapped, err := tilemapping.ToMachineWord(t.Swapped, alph)
+		if err != nil {
+			return "", fmt.Errorf("%s: bad swap %q: %w", label, t.Swapped, err)
+		}
+		kept, err := tilemapping.Leave(rack, swapped, false)
+		if err != nil {
+			return "", fmt.Errorf("%s: can't swap %s from %s: %w", label, t.Swapped, t.Rack, err)
+		}
+		m = move.NewExchangeMove(swapped, kept, alph)
+		position = "-" + t.Swapped
+	} else {
+		m = move.NewPassMove(rack, alph)
+	}
+	if _, err := g.ValidateMove(m); err != nil {
+		return "", fmt.Errorf("%s: %s is illegal: %w", label, t.Action, err)
+	}
+	if err := g.PlayMove(m, false, 0); err != nil {
+		return "", fmt.Errorf("%s: %w", label, err)
+	}
+	fmt.Printf("%2d p%d %-7s %-14s +0   %3d-%-3d bag %d\n", t.Turn, pidx+1, t.Rack, position,
+		g.PointsFor(0), g.PointsFor(1), g.Bag().TilesRemaining())
+	return fmt.Sprintf(">p%d: %s %s +0 %d", pidx+1, t.Rack, position, g.PointsFor(pidx)), nil
 }
 
 // playString returns the GCG position and tiles of a play: uppercase for tiles,

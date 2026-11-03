@@ -60,10 +60,13 @@ Spawn one Agent with `model: "haiku"` and this prompt, with the paths filled in:
 > - new_tiles: every new tile, as {"sq":"H3","letter":"R","value":0}
 > - start: the square of the first letter of the full main word, and dir: "across"
 >   or "down"
+> - action: "play", "swap" or "pass"
 > - note: anything you couldn't read confidently, otherwise ""
 >
-> If a turn is a pass or swap, leave new_tiles empty and describe what the screen
-> shows in note.
+> A swap or a pass is a turn of its own: its chip says SWAP or PASS, and its header
+> says "They swapped I, I and U" or "They passed the turn". Record its turn, player,
+> rack and action, leave new_tiles empty, and leave word, start and dir as "". For a
+> swap, also record swapped: the tiles the header names, as one string, like "IIU".
 >
 > Write a JSON array to <turns.json>. Touch nothing else, and don't touch the
 > repository. In your final message, confirm the file was written and list any turns
@@ -85,8 +88,8 @@ interesting case: it may mean that our board or tile data is wrong, so report it
 rather than adjusting anything to make it pass.
 
 - Words not in NWL23 are warnings, as they may be NYT's tweaks. Report them.
-- Passes and swaps stop the import. We haven't seen how the app shows them, so ask
-  the user for that frame and extend the importer.
+- A turn with no new tiles stops the import unless it's marked as a swap or a pass,
+  so read that frame. Swaps also have to be legal under our minimum bag size.
 
 ## 4. Report
 
